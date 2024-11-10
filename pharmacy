@@ -1,0 +1,267 @@
+import sqlite3
+import tkinter as tk
+from tkinter import ttk, messagebox, END
+from tkcalendar import DateEntry
+import datetime
+
+conn = sqlite3.connect("pharmacymanagement.db")
+cur = conn.cursor()
+
+# جدول اصلی اطلاعات داروها
+cur.execute('''
+    CREATE TABLE IF NOT EXISTS drugs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        company TEXT,
+        production_date TEXT,
+        expiry_date TEXT,
+        price_purchase REAL,
+        price_sale REAL,
+        quantity INTEGER,
+        description TEXT)
+''')
+conn.commit()
+
+root = tk.Tk()
+root.title("سیستم مدیریت داروخانه")
+
+title_label = tk.Label(root, text="سیستم مدیریت داروخانه", font=("Nazanin", 18, "bold"), fg="white", bg="#ffa533", pady=2)
+title_label.pack(fill=tk.X)
+
+# تنظیمات Treeview
+style = ttk.Style()
+style.configure("Treeview.Heading", font=("Arial", 14, "bold"), foreground="#FF9800")
+style.configure("Treeview", font=("Arial", 12))
+
+tree = ttk.Treeview(root, columns=("id", "name", "company", "production_date", "expiry_date", "price_purchase", "price_sale", "quantity", "description"), show='headings')
+for i in tree["columns"]:
+    tree.heading(i, text=i)
+tree.pack(pady=10)
+
+def load_drugs(search_query=""):
+    for row in tree.get_children():
+        tree.delete(row)
+    if search_query:
+        cur.execute("SELECT * FROM drugs WHERE name LIKE ?", ('%' + search_query + '%',))
+    else:
+        cur.execute("SELECT * FROM drugs")
+    for row in cur.fetchall():
+        tree.insert("", END, values=row)
+
+load_drugs()
+
+# فریم جستجو
+search_frame = tk.Frame(root)
+search_frame.pack(pady=10)
+
+search_label = tk.Label(search_frame, text=" جستجوی دارو", font=("Nazanin", 12, "bold"))
+search_label.pack(side=tk.RIGHT, padx=5)
+
+search_entry = tk.Entry(search_frame, font=("Nazanin", 12))
+search_entry.pack(side=tk.RIGHT, padx=5)
+
+def search_drugs():
+    query = search_entry.get()
+    load_drugs(query)
+
+search_button = tk.Button(search_frame, text="جستجو", command=search_drugs, font=("Nazanin", 12, "bold"), bg="#4CAF50", fg="white")
+search_button.pack(side=tk.RIGHT, padx=5)
+
+# فریم ورودی اطلاعات دارو
+input_frame = tk.LabelFrame(root, text="اطلاعات دارو", font=("Nazanin", 14, "bold"), padx=10, pady=10, width=300, height=200)
+input_frame.pack(pady=10)
+
+
+name_label = tk.Label(input_frame, text="نام دارو", font=("Nazanin", 12, "bold"))
+name_label.grid(row=0, column=1, sticky=tk.E)
+name_entry = tk.Entry(input_frame, font=("Nazanin", 12))
+name_entry.grid(row=0, column=0, padx=5, pady=5)
+
+company_label = tk.Label(input_frame, text="شرکت", font=("Nazanin", 12, "bold"))
+company_label.grid(row=1, column=1, sticky=tk.E)
+company_entry = tk.Entry(input_frame, font=("Nazanin", 12))
+company_entry.grid(row=1, column=0, padx=5, pady=5)
+
+production_date_label = tk.Label(input_frame, text="تاریخ تولید", font=("Nazanin", 12, "bold"))
+production_date_label.grid(row=2, column=1, sticky=tk.E)
+production_date_entry = DateEntry(input_frame, font=("Nazanin", 12))
+production_date_entry.grid(row=2, column=0, padx=5, pady=5)
+
+expiry_date_label = tk.Label(input_frame, text="تاریخ انقضا", font=("Nazanin", 12, "bold"))
+expiry_date_label.grid(row=3, column=1, sticky=tk.E)
+expiry_date_entry = DateEntry(input_frame, font=("Nazanin", 12))
+expiry_date_entry.grid(row=3, column=0, padx=5, pady=5)
+
+price_purchase_label = tk.Label(input_frame, text="قیمت خرید", font=("Nazanin", 12, "bold"))
+price_purchase_label.grid(row=0, column=3, sticky=tk.E)
+price_purchase_entry = tk.Entry(input_frame, font=("Nazanin", 12))
+price_purchase_entry.grid(row=0, column=2, padx=5, pady=5)
+
+price_sale_label = tk.Label(input_frame, text="قیمت فروش", font=("Nazanin", 12, "bold"))
+price_sale_label.grid(row=1, column=3, sticky=tk.E)
+price_sale_entry = tk.Entry(input_frame, font=("Nazanin", 12))
+price_sale_entry.grid(row=1, column=2, padx=5, pady=5)
+
+quantity_label = tk.Label(input_frame, text="تعداد", font=("Nazanin", 12, "bold"))
+quantity_label.grid(row=2, column=3, sticky=tk.E)
+quantity_entry = tk.Entry(input_frame, font=("Nazanin", 12))
+quantity_entry.grid(row=2, column=2, padx=5, pady=5)
+
+description_label = tk.Label(input_frame, text="شرح", font=("Nazanin", 12, "bold"))
+description_label.grid(row=3, column=3, sticky=tk.E)
+description_entry = tk.Entry(input_frame, font=("Nazanin", 12))
+description_entry.grid(row=3, column=2, padx=5, pady=5)
+
+entries = [name_entry, company_entry, production_date_entry, expiry_date_entry, price_purchase_entry, price_sale_entry, quantity_entry, description_entry]
+
+
+# تابع افزودن دارو
+def add_drug():
+    try:
+        name = name_entry.get()
+        company = company_entry.get()
+        production_date = production_date_entry.get_date()
+        expiry_date = expiry_date_entry.get_date()
+        price_purchase = price_purchase_entry.get()
+        price_sale = price_sale_entry.get()
+        quantity = quantity_entry.get()
+        description = description_entry.get()
+
+        # چک کردن اینکه همه فیلدهای ضروری پر شوند
+        if not all([name, company, price_purchase, price_sale, quantity]):
+            raise ValueError("لطفا همه فیلدهای ضروری را پر کنید.")
+
+        # چک کردن اینکه همه ورودی ها معتبر باشند
+        try:
+            price_purchase = float(price_purchase)
+        except ValueError:
+            raise ValueError("قیمت خرید باید یک عدد معتبر باشد.")
+
+        try:
+            price_sale = float(price_sale)
+        except ValueError:
+            raise ValueError("قیمت فروش باید یک عدد معتبر باشد.")
+
+        try:
+            quantity = int(quantity)
+        except ValueError:
+            raise ValueError("تعداد باید یک عدد صحیح معتبر باشد.")
+
+        if price_purchase <= 0 or price_sale <= 0:
+            raise ValueError("قیمت خرید و فروش باید اعداد مثبت باشند.")
+
+        if quantity <= 0:
+            raise ValueError("تعداد دارو باید یک عدد صحیح مثبت باشد.")
+
+        # بررسی تاریخ انقضا و تاریخ تولید
+        if production_date > expiry_date:
+            raise ValueError("تاریخ انقضا باید از تاریخ تولید بیشتر باشد.")
+
+        # تبدیل تاریخ به رشته قبل از ذخیره در دیتابیس
+        production_date_str = production_date.strftime("%Y-%m-%d")
+        expiry_date_str = expiry_date.strftime("%Y-%m-%d")
+
+        cur.execute('''
+            INSERT INTO drugs (name, company, production_date, expiry_date, price_purchase, price_sale, quantity, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, company, production_date_str, expiry_date_str, price_purchase, price_sale, quantity, description))
+        conn.commit()
+
+        load_drugs()
+        clear_entries()
+
+    except ValueError as e:
+        messagebox.showerror("خطای ورودی", str(e))
+    except sqlite3.Error as e:
+        messagebox.showerror("خطای پایگاه داده", f"خطا در اضافه کردن دارو: {e}")
+
+# تابع پر کردن فیلدها با اطلاعات دارو
+def populate_fields(drug):
+    name_entry.delete(0, END)
+    name_entry.insert(0, drug[1])
+
+    company_entry.delete(0, END)
+    company_entry.insert(0, drug[2])
+
+    # تبدیل رشته تاریخ به datetime.date قبل از قرار دادن در DateEntry
+    production_date = datetime.datetime.strptime(drug[3], "%Y-%m-%d").date()
+    expiry_date = datetime.datetime.strptime(drug[4], "%Y-%m-%d").date()
+    production_date_entry.set_date(production_date)
+    expiry_date_entry.set_date(expiry_date)
+
+    price_purchase_entry.delete(0, END)
+    price_purchase_entry.insert(0, drug[5])
+
+    price_sale_entry.delete(0, END)
+    price_sale_entry.insert(0, drug[6])
+
+    quantity_entry.delete(0, END)
+    quantity_entry.insert(0, drug[7])
+
+    description_entry.delete(0, END)
+    description_entry.insert(0, drug[8])
+
+# تابع ویرایش دارو
+def edit_drug():
+    try:
+        selected_item = tree.selection()
+        if not selected_item:
+            raise ValueError("هیچ دارویی انتخاب نشده است.")
+
+        drug_id = tree.item(selected_item[0])['values'][0]
+
+        # دریافت اطلاعات دارو از دیتابیس
+        cur.execute("SELECT * FROM drugs WHERE id=?", (drug_id,))
+        drug = cur.fetchone()
+
+        # چک کردن اینکه ایا دارووجوددارد
+        if drug:
+            populate_fields(drug)
+        else:
+            raise ValueError("دارو پیدا نشد.")
+
+    except ValueError as e:
+        messagebox.showerror("خطا", str(e))
+    except Exception as e:
+        messagebox.showerror("خطا", f"خطا در ویرایش دارو: {e}")
+
+# تابع حذف دارو
+def delete_drug():
+    try:
+        selected_item = tree.selection()
+        if not selected_item:
+            raise ValueError("هیچ دارویی انتخاب نشده است.")
+
+        drug_id = tree.item(selected_item[0])['values'][0]
+        cur.execute('DELETE FROM drugs WHERE id = ?', (drug_id,))
+        conn.commit()
+
+        load_drugs()
+    except ValueError as e:
+        messagebox.showerror("خطا", str(e))
+    except sqlite3.Error as e:
+        messagebox.showerror("خطا", f"خطا در حذف دارو: {e}")
+
+def clear_entries():
+    for entry in entries:
+        entry.delete(0, END)
+
+button_width = 15
+button_frame = tk.Frame(root)
+button_frame.pack(pady=5)
+
+add_button = tk.Button(button_frame, text="اضافه کردن دارو", command=add_drug, bg="#4CAF50", fg="white", font=("Nazanin", 14, "bold"), padx=5, pady=5, width=button_width)
+add_button.pack(side=tk.RIGHT, padx=5)
+
+edit_button = tk.Button(button_frame, text="ویرایش دارو", command=edit_drug, bg="#2196F3", fg="white", font=("Nazanin", 14, "bold"), padx=5, pady=5, width=button_width)
+edit_button.pack(side=tk.RIGHT, padx=5)
+
+delete_button = tk.Button(button_frame, text="حذف دارو", command=delete_drug, bg="#f44336", fg="white", font=("Nazanin", 14, "bold"), padx=5, pady=5, width=button_width)
+delete_button.pack(side=tk.RIGHT, padx=5)
+
+def on_closing():
+    conn.close()
+    root.destroy()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
+root.mainloop()
